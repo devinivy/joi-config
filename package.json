@@ -1,0 +1,43 @@
+{
+  "name": "joi-config",
+  "version": "0.0.0",
+  "description": "Joi extension for config mapping",
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=12.x.x"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "lab -a @hapi/code -t 100 -L",
+    "coveralls": "lab -r lcov | coveralls"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devinivy/joi-config.git"
+  },
+  "keywords": [
+    "joi",
+    "extension",
+    "config",
+    "configuration",
+    "mapping",
+    "hapi",
+    "hapijs"
+  ],
+  "author": "Devin Ivy <devin@bigroomstudios.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/devinivy/joi-config/issues"
+  },
+  "homepage": "https://github.com/devinivy/joi-config#readme",
+  "dependencies": {
+    "@hapi/hoek": "9.x.x"
+  },
+  "devDependencies": {
+    "@hapi/code": "8.x.x",
+    "@hapi/lab": "23.x.x",
+    "joi": "17.x.x"
+  }
+}
