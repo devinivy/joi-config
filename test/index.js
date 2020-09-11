@@ -72,6 +72,44 @@ describe('JoiConfig', () => {
         });
     });
 
+    it('value() with ref.', () => {
+
+        const params = { x: 5, a: { b: 10 } };
+        const schema = joi.value({
+            x: 1,
+            y: {
+                z: joi.value(joi.ref('/x')),
+                w: joi.value(joi.ref('.x'))
+            }
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1,
+            y: {
+                z: 1,
+                w: 5
+            }
+        });
+    });
+
+    it('value() with expression.', () => {
+
+        const params = { x: 5, a: { b: 10 } };
+        const schema = joi.value({
+            x: 1,
+            y: {
+                z: joi.value(joi.x('{...x + .a.b}'))
+            }
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1,
+            y: {
+                z: 11
+            }
+        });
+    });
+
     it('value() and params() with ref.', () => {
 
         const params = { x: 5, a: { b: 10 } };
