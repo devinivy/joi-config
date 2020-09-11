@@ -29,7 +29,7 @@ describe('JoiConfig', () => {
         expect(joi.attempt({}, joi.number().value('2'))).to.equal(2);
     });
 
-    it.only('params().', () => {
+    it('params().', () => {
 
         expect(joi.attempt({ x: 5 }, joi.param('x'))).to.equal(5);
     });
