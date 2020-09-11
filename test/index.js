@@ -22,9 +22,54 @@ describe('JoiConfig', () => {
         expect(joi.attempt({}, joi.value(4))).to.equal(4);
     });
 
-    it('params().', () => {
+    it('numeric value().', () => {
+
+        expect(joi.attempt('4', joi.number())).to.equal(4);
+        expect(joi.attempt({}, joi.number().value(1))).to.equal(1);
+        expect(joi.attempt({}, joi.number().value('2'))).to.equal(2);
+    });
+
+    it.only('params().', () => {
 
         expect(joi.attempt({ x: 5 }, joi.param('x'))).to.equal(5);
+    });
+
+    it('params via value() and ref.', () => {
+
+        const params = { x: 5, a: { b: 10 } };
+        const schema = joi.value({
+            x: 1,
+            y: {
+                z: joi.value(joi.ref('x', { ancestor: 0 }))
+            },
+            w: joi.value(joi.ref('a.b', { ancestor: 0 }))
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1,
+            y: {
+                z: 5
+            },
+            w: 10
+        });
+    });
+
+    it('value() and params() with ref.', () => {
+
+        const params = { x: 5, a: { b: 10 } };
+        const schema = joi.value({
+            x: 1,
+            y: {
+                z: joi.value(joi.ref('/x'))
+            }
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1,
+            y: {
+                z: 1
+            }
+        });
     });
 
     it('value() and params() with ref.', () => {
