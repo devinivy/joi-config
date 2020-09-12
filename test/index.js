@@ -129,4 +129,38 @@ describe('JoiConfig', () => {
             }
         });
     });
+
+    it('value() and param() with into().', () => {
+
+        const params = { a: 1, b: 'twelve', c: ['s', 'e', 'e'] };
+        const schema = joi.value({
+            x: joi.param('a').into({
+                is: 1,
+                then: joi.value('one'),
+                otherwise: joi.value(null)
+            }),
+            y: {
+                z: joi.value('twelve').into({
+                    is: 'twelve',
+                    then: joi.param('c'),
+                    otherwise: joi.value(null)
+                })
+            },
+            w: joi.array().value([
+                'item1',
+                joi.param('a').into({
+                    is: 2,
+                    then: 'item2',
+                    otherwise: joi.strip() // TODO pull this functionality into separate test
+                }),
+                'item3'
+            ])
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 'one',
+            y: { z: ['s', 'e', 'e'] },
+            w: ['item1', 'item3']
+        });
+    });
 });
