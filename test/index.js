@@ -163,4 +163,40 @@ describe('JoiConfig', () => {
             w: ['item1', 'item3']
         });
     });
+
+    it('into() with missing case passes through.', () => {
+
+        const params = { a: 1 };
+        const schema = joi.value({
+            x: joi.param('a').into({
+                is: 2,
+                then: joi.value('one')
+            })
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1
+        });
+    });
+
+    it('into() with paramRef().', () => {
+
+        const params = { a: 1, b: 'two', c: 1 };
+        const schema = joi.value({
+            x: joi.param('a').into({
+                is: joi.paramRef('c'),
+                then: joi.param('b'),
+                otherwise: joi.value(null)
+            })
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 1
+        });
+    });
+
+    it.skip('original() resets...', () => {
+
+        throw new Error();
+    });
 });
