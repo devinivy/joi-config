@@ -197,9 +197,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
-            x: undefined // TODO strip
-        });
+        expect(joi.attempt(params, schema)).to.equal({});
     });
 
     it('intoWhen() with default().', () => {
@@ -222,17 +220,13 @@ describe('JoiConfig', () => {
 
         const schema = joi.value({
             x: joi.value('x')
-                // TODO consider whenParam()
+                // TODO consider whenParam() for support of params in
+                // NOTE when('.a', ...) also works here
                 .when(joi.paramRef('a'), { is: 1, then: joi.strip() })
         });
 
-        expect(joi.attempt({ a: 1 }, schema)).to.equal({
-            x: undefined // TODO should be stripped
-        });
-
-        expect(joi.attempt({ a: 2 }, schema)).to.equal({
-            x: 'x'
-        });
+        expect(joi.attempt({ a: 1 }, schema)).to.equal({});
+        expect(joi.attempt({ a: 2 }, schema)).to.equal({ x: 'x' });
     });
 
     it('into() with object.', () => {
@@ -252,9 +246,7 @@ describe('JoiConfig', () => {
             x: 2
         });
 
-        expect(joi.attempt({ a: 'three' }, schema)).to.equal({
-            x: undefined // TODO should strip
-        });
+        expect(joi.attempt({ a: 'three' }, schema)).to.equal({});
     });
 
     it('into() with object and defaults.', () => {
@@ -308,15 +300,4 @@ describe('JoiConfig', () => {
             x: 'two'
         });
     });
-
-    it.skip('strip', () => {
-
-        const params = { a: 1, b: 'two', c: 1 };
-        const schema = joi.param('a').when({
-            is: 1,
-            then: joi.strip()
-        });
-
-        expect(joi.attempt(params, schema)).to.equal(undefined);
-    })
 });
