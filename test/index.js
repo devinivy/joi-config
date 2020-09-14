@@ -164,13 +164,14 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('intoWhen() with missing case passes through.', () => {
+    it('intoWhen() passes through prepared value.', () => {
 
         const params = { a: 1 };
         const schema = joi.value({
             x: joi.param('a').intoWhen({
                 is: 2,
-                then: joi.value('one')
+                then: joi.value('two'),
+                otherwise: joi.any()
             })
         });
 
@@ -179,6 +180,20 @@ describe('JoiConfig', () => {
         });
     });
 
+    it('intoWhen() strips when case is missing.', () => {
+
+        const params = { a: 1 };
+        const schema = joi.value({
+            x: joi.param('a').intoWhen({
+                is: 2,
+                then: joi.value('two')
+            })
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: undefined // TODO strip
+        });
+    });
 
     it('intoWhen() with default().', () => {
 
@@ -271,44 +286,6 @@ describe('JoiConfig', () => {
         expect(joi.attempt({ a: '$default' }, schema3)).to.equal({ x: 3 });
     });
 
-    it.skip('intoWhen() with default().', () => {
-
-        const params = { a: 2 };
-
-        const schema1 = joi.value({
-            x: joi.param('NODE_ENV').intoWhen(10, {
-                production: 2,
-                $default: 10
-            })
-        });
-
-        const schema12 = joi.value({
-            x: joi.param('NODE_ENV').intoWhen(10, {
-                production: 2,
-                $default: 10
-            })
-        });
-
-        const schema2 = joi.value({
-            x: joi.param('NODE_ENV').intoWhen({
-                production: 2
-            })
-                .default(10)
-        });
-
-        const schema3 = joi.value({
-            x: joi.param('NODE_ENV').intoWhen(10, [
-                [joi.string().min(2), 2],
-                ['production', 2],
-                [joi.intoDefault, 5]
-            ])
-        });
-
-        expect(joi.attempt(params, schema1)).to.equal({
-            x: 'two'
-        });
-    });
-
     it('intoWhen() with paramRef(x, { force: true }).', () => {
 
         const params = { a: 1, b: 'two', c: 1 };
@@ -324,4 +301,15 @@ describe('JoiConfig', () => {
             x: 'two'
         });
     });
+
+    it.skip('strip', () => {
+
+        const params = { a: 1, b: 'two', c: 1 };
+        const schema = joi.param('a').when({
+            is: 1,
+            then: joi.strip()
+        });
+
+        expect(joi.attempt(params, schema)).to.equal(undefined);
+    })
 });
