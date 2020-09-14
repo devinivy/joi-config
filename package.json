@@ -1,7 +1,7 @@
 {
   "name": "joi-config",
   "version": "0.0.0",
-  "description": "Joi extension for config mapping",
+  "description": "Joi extension for building safe configurations",
   "main": "lib/index.js",
   "engines": {
     "node": ">=12.x.x"
