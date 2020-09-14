@@ -300,4 +300,16 @@ describe('JoiConfig', () => {
             x: 'two'
         });
     });
+
+    it('allows value() with circular reference.', () => {
+
+        // TODO currently fails
+
+        const a = {};
+        a.a = a;
+
+        const schema = joi.value(a);
+
+        expect(joi.attempt({}, schema)).to.exist();
+    });
 });
