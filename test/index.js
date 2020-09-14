@@ -130,17 +130,17 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('value() and param() with into().', () => {
+    it('value() and param() with intoWhen().', () => {
 
         const params = { a: 1, b: 'twelve', c: ['s', 'e', 'e'] };
         const schema = joi.value({
-            x: joi.param('a').into({
+            x: joi.param('a').intoWhen({
                 is: 1,
                 then: joi.value('one'),
                 otherwise: joi.value(null)
             }),
             y: {
-                z: joi.value('twelve').into({
+                z: joi.value('twelve').intoWhen({
                     is: 'twelve',
                     then: joi.param('c'),
                     otherwise: joi.value(null)
@@ -148,7 +148,7 @@ describe('JoiConfig', () => {
             },
             w: joi.array().value([
                 'item1',
-                joi.param('a').into({
+                joi.param('a').intoWhen({
                     is: 2,
                     then: 'item2',
                     otherwise: joi.strip() // TODO pull this functionality into separate test
@@ -164,11 +164,11 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('into() with missing case passes through.', () => {
+    it('intoWhen() with missing case passes through.', () => {
 
         const params = { a: 1 };
         const schema = joi.value({
-            x: joi.param('a').into({
+            x: joi.param('a').intoWhen({
                 is: 2,
                 then: joi.value('one')
             })
@@ -179,24 +179,149 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('into() with paramRef().', () => {
+
+    it('intoWhen() with default().', () => {
+
+        const params = { a: 2 };
+        const schema = joi.value({
+            x: joi.param('a').default('two').intoWhen({
+                is: 1,
+                then: joi.value('one'),
+                otherwise: joi.strip()
+            })
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            x: 'two'
+        });
+    });
+
+    it('compatibility with when()', () => {
+
+        const schema = joi.value({
+            x: joi.value('x')
+                // TODO consider whenParam()
+                .when(joi.paramRef('a'), { is: 1, then: joi.strip() })
+        });
+
+        expect(joi.attempt({ a: 1 }, schema)).to.equal({
+            x: undefined // TODO should be stripped
+        });
+
+        expect(joi.attempt({ a: 2 }, schema)).to.equal({
+            x: 'x'
+        });
+    });
+
+    it('into() with object.', () => {
+
+        const schema = joi.value({
+            x: joi.param('a').into({
+                one: 1,
+                two: 2
+            })
+        });
+
+        expect(joi.attempt({ a: 'one' }, schema)).to.equal({
+            x: 1
+        });
+
+        expect(joi.attempt({ a: 'two' }, schema)).to.equal({
+            x: 2
+        });
+
+        expect(joi.attempt({ a: 'three' }, schema)).to.equal({
+            x: undefined // TODO should strip
+        });
+    });
+
+    it('into() with object and defaults.', () => {
+
+        const schema1 = joi.value({
+            x: joi.param('a').into({
+                one: 1,
+                two: 2,
+                $default: 0
+            })
+        });
+
+        expect(joi.attempt({ a: 'three' }, schema1)).to.equal({ x: 0 });
+
+        const schema2 = joi.value({
+            x: joi.param('a').into({
+                one: 1,
+                two: 2,
+                [joi.default]: 0
+            })
+        });
+
+        expect(joi.attempt({ a: 'three' }, schema2)).to.equal({ x: 0 });
+
+        const schema3 = joi.value({
+            x: joi.param('a').into({
+                one: 1,
+                two: 2,
+                $default: 3,
+                [joi.default]: 0
+            })
+        });
+
+        expect(joi.attempt({ a: 'three' }, schema3)).to.equal({ x: 0 });
+
+        expect(joi.attempt({ a: '$default' }, schema3)).to.equal({ x: 3 });
+    });
+
+    it.skip('intoWhen() with default().', () => {
+
+        const params = { a: 2 };
+
+        const schema1 = joi.value({
+            x: joi.param('NODE_ENV').intoWhen(10, {
+                production: 2,
+                $default: 10
+            })
+        });
+
+        const schema12 = joi.value({
+            x: joi.param('NODE_ENV').intoWhen(10, {
+                production: 2,
+                $default: 10
+            })
+        });
+
+        const schema2 = joi.value({
+            x: joi.param('NODE_ENV').intoWhen({
+                production: 2
+            })
+                .default(10)
+        });
+
+        const schema3 = joi.value({
+            x: joi.param('NODE_ENV').intoWhen(10, [
+                [joi.string().min(2), 2],
+                ['production', 2],
+                [joi.intoDefault, 5]
+            ])
+        });
+
+        expect(joi.attempt(params, schema1)).to.equal({
+            x: 'two'
+        });
+    });
+
+    it('intoWhen() with paramRef(x, { force: true }).', () => {
 
         const params = { a: 1, b: 'two', c: 1 };
         const schema = joi.value({
-            x: joi.param('a').into({
-                is: joi.paramRef('c'),
+            x: joi.param('a').intoWhen({
+                is: joi.paramRef('c', { force: true }),
                 then: joi.param('b'),
                 otherwise: joi.value(null)
             })
         });
 
         expect(joi.attempt(params, schema)).to.equal({
-            x: 1
+            x: 'two'
         });
-    });
-
-    it.skip('original() resets...', () => {
-
-        throw new Error();
     });
 });
