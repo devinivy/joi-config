@@ -301,15 +301,32 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('allows value() with circular reference.', () => {
+    it.skip('intoWhen() with empty value.', () => {
 
-        // TODO currently fails
+        const params = {};
+        const schema = joi.param('ernnt').intoWhen({
+            is: joi.number(),
+            then: joi.value(false),
+            otherwise: joi.value(true)
+        });
+
+        // expect(joi.attempt({}, Joi.when('/a', {
+        //     is: joi.number(),
+        //     then: joi.value(false),
+        //     otherwise: joi.value(true)
+        // }))).to.equal(true);
+
+        expect(joi.attempt(params, schema)).to.equal(true);
+
+    });
+
+    it('allows value() with circular reference.', () => {
 
         const a = {};
         a.a = a;
 
         const schema = joi.value(a);
 
-        expect(joi.attempt({}, schema)).to.exist();
+        expect(joi.attempt({}, schema)).to.shallow.equal(a);
     });
 });
