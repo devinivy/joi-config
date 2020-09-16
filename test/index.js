@@ -79,6 +79,26 @@ describe('JoiConfig', () => {
         });
     });
 
+    it('the values() refs test.', () => {
+
+        const params = { x: 5, a: { b: 10 } };
+        const schema = joi.value({
+            w: joi.value(joi.ref('.a.b')),
+            y: {
+                x: joi.value(joi.ref('/y/z')),
+                z: joi.value(joi.ref('...w'))
+            }
+        });
+
+        expect(joi.attempt(params, schema)).to.equal({
+            w: 10,
+            y: {
+                x: 10,
+                z: 10
+            }
+        });
+    });
+
     it('value() with ref.', () => {
 
         const params = { x: 5, a: { b: 10 } };
