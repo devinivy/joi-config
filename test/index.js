@@ -7,7 +7,6 @@ const Lab = require('@hapi/lab');
 const Code = require('@hapi/code');
 const JoiBase = require('joi');
 const JoiConfig = require('..');
-const Joi = require('joi');
 
 // Test shortcuts
 
@@ -70,7 +69,7 @@ describe('JoiConfig', () => {
             a2: { c: joi.ref('...a7') },
             a3: { e: joi.ref('...a6') },
             a4: joi.ref('a5'),
-            a5: joi.paramRef('x'),
+            a5: joi.ref('/x'),
             a6: joi.ref('a4'),
             a7: { d: joi.ref('...a3') },
             a8: { b: joi.ref('...a2') }
@@ -113,7 +112,7 @@ describe('JoiConfig', () => {
             y: joi.param('x'),
             z: {
                 w: joi.param('a.b'),
-                aa: joi.param('a.c').default(joi.ref('/y'))
+                aa: joi.param('a.c').default(joi.ref('...y'))
             }
         });
 
@@ -209,9 +208,7 @@ describe('JoiConfig', () => {
 
         const schema = joi.value({
             x: joi.value('x')
-                // TODO consider whenParam() for support of params in
-                // NOTE when('.a', ...) also works here
-                .when(joi.paramRef('a'), { is: 1, then: joi.strip() })
+                .when(joi.ref('/a'), { is: 1, then: joi.strip() })
         });
 
         expect(joi.attempt({ a: 1 }, schema)).to.equal({});
@@ -274,12 +271,12 @@ describe('JoiConfig', () => {
         expect(joi.attempt({ a: '$default' }, schema3)).to.equal({ x: 3 });
     });
 
-    it('intoWhen() with paramRef(x, { force: true }).', () => {
+    it('intoWhen() with ref in { is }.', () => {
 
         const params = { a: 1, b: 'two', c: 1 };
         const schema = joi.value({
             x: joi.param('a').intoWhen({
-                is: joi.paramRef('c', { force: true }),
+                is: joi.ref('/c'),
                 then: joi.param('b'),
                 otherwise: joi.value(null)
             })
@@ -290,7 +287,7 @@ describe('JoiConfig', () => {
         });
     });
 
-    it.skip('intoWhen() with empty value.', () => {
+    it('intoWhen() with empty value.', () => {
 
         const params = {};
         const schema = joi.param('ernnt').intoWhen({
@@ -298,12 +295,6 @@ describe('JoiConfig', () => {
             then: joi.value(false),
             otherwise: joi.value(true)
         });
-
-        // expect(joi.attempt({}, Joi.when('/a', {
-        //     is: joi.number(),
-        //     then: joi.value(false),
-        //     otherwise: joi.value(true)
-        // }))).to.equal(true);
 
         expect(joi.attempt(params, schema)).to.equal(true);
 
@@ -317,5 +308,15 @@ describe('JoiConfig', () => {
         const schema = joi.value(a);
 
         expect(joi.attempt({}, schema)).to.shallow.equal(a);
+    });
+
+    it('allows refs in standard rules.', () => {
+
+        const schema = joi.value({
+            x: joi.number().min(joi.ref('/min')).value(11)
+        });
+
+        expect(joi.attempt({ min: 10 }, schema)).to.equal({ x: 11 });
+        expect(() => joi.attempt({ min: 12 }, schema)).to.throw('"x" must be greater than or equal to ref:root:min');
     });
 });
