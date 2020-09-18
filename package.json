@@ -33,7 +33,8 @@
   },
   "homepage": "https://github.com/devinivy/joi-config#readme",
   "dependencies": {
-    "@hapi/hoek": "9.x.x"
+    "@hapi/hoek": "9.x.x",
+    "@hapi/topo": "5.x.x"
   },
   "devDependencies": {
     "@hapi/code": "8.x.x",

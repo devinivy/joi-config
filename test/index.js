@@ -7,6 +7,7 @@ const Lab = require('@hapi/lab');
 const Code = require('@hapi/code');
 const JoiBase = require('joi');
 const JoiConfig = require('..');
+const Joi = require('joi');
 
 // Test shortcuts
 
@@ -61,61 +62,29 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('value() and params() with ref.', () => {
+    it('value() supports relative refs.', () => {
 
-        const params = { x: 5, a: { b: 10 } };
+        const params = { x: 6 };
         const schema = joi.value({
-            x: 1,
-            y: {
-                z: joi.value(joi.ref('/x'))
-            }
+            a1: joi.ref('a8'),
+            a2: { c: joi.ref('...a7') },
+            a3: { e: joi.ref('...a6') },
+            a4: joi.ref('a5'),
+            a5: joi.paramRef('x'),
+            a6: joi.ref('a4'),
+            a7: { d: joi.ref('...a3') },
+            a8: { b: joi.ref('...a2') }
         });
 
         expect(joi.attempt(params, schema)).to.equal({
-            x: 1,
-            y: {
-                z: 1
-            }
-        });
-    });
-
-    it('the values() refs test.', () => {
-
-        const params = { x: 5, a: { b: 10 } };
-        const schema = joi.value({
-            w: joi.value(joi.ref('.a.b')),
-            y: {
-                x: joi.value(joi.ref('/y/z')),
-                z: joi.value(joi.ref('...w'))
-            }
-        });
-
-        expect(joi.attempt(params, schema)).to.equal({
-            w: 10,
-            y: {
-                x: 10,
-                z: 10
-            }
-        });
-    });
-
-    it('value() with ref.', () => {
-
-        const params = { x: 5, a: { b: 10 } };
-        const schema = joi.value({
-            x: 1,
-            y: {
-                z: joi.value(joi.ref('/x')),
-                w: joi.value(joi.ref('.x'))
-            }
-        });
-
-        expect(joi.attempt(params, schema)).to.equal({
-            x: 1,
-            y: {
-                z: 1,
-                w: 5
-            }
+            a1: { b: { c: { d: { e: 6 } } } },
+            a2: { c: { d: { e: 6 } } },
+            a3: { e: 6 },
+            a4: 6,
+            a5: 6,
+            a6: 6,
+            a7: { d: { e: 6 } },
+            a8: { b: { c: { d: { e: 6 } } } }
         });
     });
 
