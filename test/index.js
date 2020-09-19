@@ -30,7 +30,7 @@ describe('JoiConfig', () => {
 
     it('undefined value().', () => {
 
-        expect(joi.attempt({}, joi.value())).to.equal({}); // Not the ideal behavior, but it comes from joi and is here for documentation.
+        expect(joi.attempt({}, joi.value())).to.equal(undefined);
         expect(joi.attempt({}, joi.any().value())).to.equal(undefined);
         expect(joi.attempt({}, joi.value(undefined))).to.equal(undefined);
         expect(joi.attempt({}, joi.value(undefined).default(7))).to.equal(7);
