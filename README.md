@@ -81,11 +81,17 @@ Joi.attempt(params, Joi.value({
 }));
 
 // Returns {
-//     header: { fontColor: '#6495ED', backgroundColor: '#FFFFFF', fontSize: 22 },
-//     callToAction: { fontColor: '#000000', backgroundColor: '#DA70D6', fontSize: 10 }
+//     header: {
+//         fontColor: '#6495ED',
+//         backgroundColor: '#FFFFFF',
+//         fontSize: 22
+//      },
+//     callToAction: {
+//         fontColor: '#000000',
+//         backgroundColor: '#DA70D6',
+//         fontSize: 10
+//      }
 // }
-}
-
 ```
 
 #### Mapping values
@@ -114,12 +120,8 @@ Joi.attempt(process.env, Joi.value({
                 plugin: '../lib', // Main plugin
                 options: {}
             },
-            Joi.param('NODE_ENV').into({
-                production: Joi.strip(),
-                $default: {
-                    plugin: 'hpal-debug'
-                }
-            })
+            Joi.value({ plugin: 'hpal-debug' })
+                .whenParam('NODE_ENV', { is: 'production', then: Joi.strip() })
         ]
     }
 }));
@@ -127,7 +129,7 @@ Joi.attempt(process.env, Joi.value({
 
 #### References
 
-You can use params as refs and expressions as well (so far, with some caveats).
+You can use params as refs and expressions.  In order to reference params, simply reference the root `Joi.ref('/some.param')` or use the utilities `Joi.pref()` and `Joi.pexpression()` (or `Joi.px()`).
 
 ```js
 const params = { x: 5, a: { b: 10 } };
@@ -135,9 +137,10 @@ const params = { x: 5, a: { b: 10 } };
 Joi.attempt(params, Joi.value({
     x: 1,
     y: {
-        z: Joi.value(Joi.ref('/x')),
-        w: Joi.value(Joi.ref('.x')),
-        q: Joi.value(Joi.x('{.a.b * 2}'))
+        z: Joi.pref('x'),
+        w: Joi.ref('...x'),
+        q: Joi.px('{a.b * 2}'),
+        u: Joi.number().value(6).min(Joi.pref('x'))
     }
 }));
 
@@ -146,7 +149,8 @@ Joi.attempt(params, Joi.value({
 //     y: {
 //         z: 1,
 //         w: 5,
-//         q: 20
+//         q: 20,
+//         u: 6
 //     }
 // }
 ```
