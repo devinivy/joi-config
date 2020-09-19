@@ -15,7 +15,7 @@ const { expect } = Code;
 
 describe('JoiConfig', () => {
 
-    const joi = JoiBase.extend(...JoiConfig);
+    const joi = JoiBase.extend(JoiConfig);
 
     it('is an extension.', () => {
 

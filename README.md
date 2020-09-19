@@ -20,7 +20,7 @@ npx shrimport ../joi-config
 
 ```js
 const JoiConfig = require('joi-config');
-const Joi = require('joi').extend(...JoiConfig);
+const Joi = require('joi').extend(JoiConfig);
 ```
 
 ### Examples
