@@ -17,28 +17,30 @@ describe('JoiConfig', () => {
 
     const joi = JoiBase.extend(JoiConfig);
 
+    const attempt = (...args) => expect(joi.attempt(...args));
+
     it('is an extension.', () => {
 
-        expect(joi.attempt({}, joi.value(4))).to.equal(4);
+        attempt({}, joi.value(4)).to.equal(4);
     });
 
     it('numeric value().', () => {
 
-        expect(joi.attempt({}, joi.number().value(1))).to.equal(1);
-        expect(joi.attempt({}, joi.number().value('2'))).to.equal(2);
+        attempt({}, joi.number().value(1)).to.equal(1);
+        attempt({}, joi.number().value('2')).to.equal(2);
     });
 
     it('undefined value().', () => {
 
-        expect(joi.attempt({}, joi.value())).to.equal(undefined);
-        expect(joi.attempt({}, joi.any().value())).to.equal(undefined);
-        expect(joi.attempt({}, joi.value(undefined))).to.equal(undefined);
-        expect(joi.attempt({}, joi.value(undefined).default(7))).to.equal(7);
+        attempt({}, joi.value()).to.equal(undefined);
+        attempt({}, joi.any().value()).to.equal(undefined);
+        attempt({}, joi.value(undefined)).to.equal(undefined);
+        attempt({}, joi.value(undefined).default(7)).to.equal(7);
     });
 
-    it('params().', () => {
+    it('param().', () => {
 
-        expect(joi.attempt({ x: 5 }, joi.param('x'))).to.equal(5);
+        attempt({ x: 5 }, joi.param('x')).to.equal(5);
     });
 
     it('params via value() and ref.', () => {
@@ -52,7 +54,7 @@ describe('JoiConfig', () => {
             w: joi.value(joi.ref('a.b', { ancestor: 0 }))
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 1,
             y: {
                 z: 5
@@ -75,7 +77,7 @@ describe('JoiConfig', () => {
             a8: { b: joi.ref('...a2') }
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             a1: { b: { c: { d: { e: 6 } } } },
             a2: { c: { d: { e: 6 } } },
             a3: { e: 6 },
@@ -97,7 +99,7 @@ describe('JoiConfig', () => {
             }
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 1,
             y: {
                 z: 11
@@ -116,7 +118,7 @@ describe('JoiConfig', () => {
             }
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             y: 5,
             z: {
                 w: 10,
@@ -152,7 +154,7 @@ describe('JoiConfig', () => {
             ])
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 'one',
             y: { z: ['s', 'e', 'e'] },
             w: ['item1', 'item3']
@@ -170,7 +172,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 1
         });
     });
@@ -185,7 +187,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt(params, schema)).to.equal({});
+        attempt(params, schema).to.equal({});
     });
 
     it('intoWhen() with default().', () => {
@@ -199,7 +201,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 'two'
         });
     });
@@ -211,8 +213,8 @@ describe('JoiConfig', () => {
                 .when(joi.ref('/a'), { is: 1, then: joi.strip() })
         });
 
-        expect(joi.attempt({ a: 1 }, schema)).to.equal({});
-        expect(joi.attempt({ a: 2 }, schema)).to.equal({ x: 'x' });
+        attempt({ a: 1 }, schema).to.equal({});
+        attempt({ a: 2 }, schema).to.equal({ x: 'x' });
     });
 
     it('into() with object.', () => {
@@ -224,15 +226,15 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt({ a: 'one' }, schema)).to.equal({
+        attempt({ a: 'one' }, schema).to.equal({
             x: 1
         });
 
-        expect(joi.attempt({ a: 'two' }, schema)).to.equal({
+        attempt({ a: 'two' }, schema).to.equal({
             x: 2
         });
 
-        expect(joi.attempt({ a: 'three' }, schema)).to.equal({});
+        attempt({ a: 'three' }, schema).to.equal({});
     });
 
     it('into() with object and defaults.', () => {
@@ -245,7 +247,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt({ a: 'three' }, schema1)).to.equal({ x: 0 });
+        attempt({ a: 'three' }, schema1).to.equal({ x: 0 });
 
         const schema2 = joi.value({
             x: joi.param('a').into({
@@ -255,7 +257,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt({ a: 'three' }, schema2)).to.equal({ x: 0 });
+        attempt({ a: 'three' }, schema2).to.equal({ x: 0 });
 
         const schema3 = joi.value({
             x: joi.param('a').into({
@@ -266,9 +268,9 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt({ a: 'three' }, schema3)).to.equal({ x: 0 });
+        attempt({ a: 'three' }, schema3).to.equal({ x: 0 });
 
-        expect(joi.attempt({ a: '$default' }, schema3)).to.equal({ x: 3 });
+        attempt({ a: '$default' }, schema3).to.equal({ x: 3 });
     });
 
     it('intoWhen() with ref in { is }.', () => {
@@ -282,7 +284,7 @@ describe('JoiConfig', () => {
             })
         });
 
-        expect(joi.attempt(params, schema)).to.equal({
+        attempt(params, schema).to.equal({
             x: 'two'
         });
     });
@@ -296,7 +298,7 @@ describe('JoiConfig', () => {
             otherwise: joi.value(true)
         });
 
-        expect(joi.attempt(params, schema)).to.equal(true);
+        attempt(params, schema).to.equal(true);
 
     });
 
@@ -307,7 +309,7 @@ describe('JoiConfig', () => {
 
         const schema = joi.value(a);
 
-        expect(joi.attempt({}, schema)).to.shallow.equal(a);
+        attempt({}, schema).to.shallow.equal(a);
     });
 
     it('allows refs in standard rules.', () => {
@@ -316,7 +318,7 @@ describe('JoiConfig', () => {
             x: joi.number().min(joi.ref('/min')).value(11)
         });
 
-        expect(joi.attempt({ min: 10 }, schema)).to.equal({ x: 11 });
+        attempt({ min: 10 }, schema).to.equal({ x: 11 });
         expect(() => joi.attempt({ min: 12 }, schema)).to.throw('"x" must be greater than or equal to ref:root:min');
     });
 });
