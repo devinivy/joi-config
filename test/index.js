@@ -299,7 +299,6 @@ describe('JoiConfig', () => {
         });
 
         attempt(params, schema).to.equal(true);
-
     });
 
     it('allows value() with circular reference.', () => {
@@ -320,5 +319,31 @@ describe('JoiConfig', () => {
 
         attempt({ min: 10 }, schema).to.equal({ x: 11 });
         expect(() => joi.attempt({ min: 12 }, schema)).to.throw('"x" must be greater than or equal to ref:root:min');
+    });
+
+    it('whenParam() conditionally strips array items.', () => {
+
+        const schema = joi.value([
+            1,
+            joi.value(2)
+                .whenParam('x', { is: 1, then: joi.strip() }),
+            3
+        ]);
+
+        attempt({ x: 1 }, schema).to.equal([1, 3]);
+        attempt({ x: 0 }, schema).to.equal([1, 2, 3]);
+    });
+
+    it('whenParam() conditionally strips object items.', () => {
+
+        const schema = joi.value({
+            x: 1,
+            y: joi.value(2)
+                .whenParam('x', { is: 1, then: joi.strip() }),
+            z: 3
+        });
+
+        attempt({ x: 1 }, schema).to.equal({ x: 1, z: 3 });
+        attempt({ x: 0 }, schema).to.equal({ x: 1, y: 2, z: 3 });
     });
 });
