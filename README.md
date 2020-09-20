@@ -19,8 +19,8 @@ npx shrimport ../joi-config
 ### Usage
 
 ```js
-const JoiConfig = require('joi-config');
-const Joi = require('joi').extend(JoiConfig);
+const Joi = require('joi')
+    .extend(require('joi-config'));
 ```
 
 ### Examples
@@ -40,7 +40,7 @@ Joi.attempt(input, Joi.value('88')); // Returns '88'
 
 Joi.attempt(input, Joi.number().value('88')); // Returns 88 as a number
 
-// Objects any arrays work
+// Objects and arrays work
 
 Joi.attempt(input, Joi.value({ a: 'x' })); // Returns { a: 'x' }
 
@@ -53,7 +53,7 @@ Joi.attempt(input, Joi.value({ // Returns { a: 88 }
 
 #### Params
 
-Params are also `values()`, but they reference the validation input.
+Params are also `value()`s, but they reference the validation input.
 
 ```js
 const params = {
@@ -147,8 +147,8 @@ Joi.attempt(params, Joi.value({
 // Returns {
 //     x: 1,
 //     y: {
-//         z: 1,
-//         w: 5,
+//         z: 5,
+//         w: 1,
 //         q: 20,
 //         u: 6
 //     }
