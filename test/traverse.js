@@ -81,10 +81,10 @@ describe('Traverse', () => {
 
         it('finds paths through symbols.', () => {
 
-            const x = Symbol('x');
+            const symx = Symbol('x');
 
             const obj = {
-                a: { [x]: 'c' },
+                a: { [symx]: 'c' },
                 b: ['c'],
                 c: 'd'
             };
@@ -93,18 +93,13 @@ describe('Traverse', () => {
 
             expect(paths).to.equal([
                 ['b', '0'],
-                ['a', x]
+                ['a', symx]
             ]);
         });
 
         it('does not revisit objects through circular references.', () => {
 
-            const x = Symbol('x');
-
-            const obj = {
-                a: {}
-            };
-
+            const obj = { a: {} };
             obj.a.x = obj;
 
             const paths = Traverse.findPaths(obj, (x, path) => x === obj && path.length > 0);

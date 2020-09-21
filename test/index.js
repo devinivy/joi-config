@@ -17,26 +17,128 @@ describe('JoiConfig', () => {
 
     const joi = JoiBase.extend(JoiConfig);
 
+    it('is an extension to joi.', () => {
+
+        expect(joi.value).to.be.a.function();
+        expect(joi.isSchema(joi.value())).to.be.true();
+        expect(JoiBase.value).to.not.be.a.function();
+    });
+
     const attempt = (...args) => expect(joi.attempt(...args));
+    const fail = (...args) => expect(() => joi.attempt(...args));
 
-    it('is an extension.', () => {
+    describe('value()', () => {
 
-        attempt({}, joi.value(4)).to.equal(4);
+        it('prepares validation for the passed value.', () => {
+
+            attempt({}, joi.any().value(1)).to.equal(1);
+            attempt({}, joi.number().value(1)).to.equal(1);
+            attempt({}, joi.number().value('2')).to.equal(2);
+            attempt({}, joi.object().value({ a: { b: 'c' } })).to.equal({ a: { b: 'c' } });
+            attempt({}, joi.array().items(joi.string()).value(['a', 'b', 'c'])).to.equal(['a', 'b', 'c']);
+
+            fail({}, joi.any().value().required()).to.throw('"value" is required');
+            fail({}, joi.string().value(1)).to.throw('"value" must be a string');
+            fail({}, joi.number().value('two')).to.throw('"value" must be a number');
+            fail({}, joi.object().value('not an object')).to.throw('"value" must be of type object');
+            fail({}, joi.array().items(joi.string()).value(['a', 2, 'c'])).to.throw('"[1]" must be a string');
+        });
+
+        it('supports shorthand for any().value().', () => {
+
+            expect(joi.value(1).describe()).to.equal(joi.any().value(1).describe());
+            expect(joi.value(1).describe()).to.equal({
+                type: 'any',
+                flags: { value: { literal: false, compiled: 1, keys: [] } }
+            });
+
+            attempt({}, joi.value(1)).to.equal(1);
+            attempt({}, joi.value({})).to.equal({});
+            fail({}, joi.value().required()).to.throw('"value" is required');
+        });
+
+        it('plays nice with undefined.', () => {
+
+            attempt({}, joi.value()).to.equal(undefined);
+            attempt({}, joi.any().value()).to.equal(undefined);
+            attempt({}, joi.value(undefined)).to.equal(undefined);
+            attempt({}, joi.value(undefined).default(7)).to.equal(7);
+        });
+
+        it('evaluates refs and expressions.', () => {
+
+            const prefs = { context: { a: { b: 'c' }, d: 'e', f: [1, 2] } };
+
+            attempt({}, joi.value(joi.ref('$d')), prefs).to.equal('e');
+            attempt({}, joi.value(joi.ref('$a.b')), prefs).to.equal('c');
+            attempt({}, joi.value(joi.ref('$a')), prefs).to.equal({ b: 'c' });
+            attempt({}, joi.value(joi.ref('$f')), prefs).to.equal([1, 2]);
+            attempt({}, joi.value(joi.x('{$f.0 + $f.1}')), prefs).to.equal(3);
+        });
+
+        it('evaluates refs, expressions, and schemas deeply.', () => {
+
+            const schema = joi.value({
+                a: [
+                    'b',
+                    joi.ref('$a.b')
+                ],
+                b: joi.number().value('4').min(joi.x('{$f.0 + $f.1 + 1}')),
+                c: {
+                    d: 'e',
+                    f: { g: joi.value('h') }
+                }
+            });
+
+            const prefsPassing = { context: { a: { b: 'c' }, d: 'e', f: [1, 2] } };
+
+            attempt({}, schema, prefsPassing).to.equal({
+                a: ['b', 'c'],
+                b: 4,
+                c: { d: 'e', f: { g: 'h' } }
+            });
+
+            const prefsFailing = { context: { a: { b: 'c' }, d: 'e', f: [2, 2] } };
+
+            fail({}, schema, prefsFailing).to.throw('"b" must be greater than or equal to {$f.0 + $f.1 + 1}');
+        });
+
+        it('valuates relative refs in order based on dependency.', () => {
+
+            const prefs = { context: { x: 6 } };
+            const schema = joi.value({
+                a1: joi.ref('a8'),
+                a2: { c: joi.ref('...a7') },
+                a3: { e: joi.ref('...a6') },
+                a4: joi.ref('a5'),
+                a5: joi.ref('$x'),
+                a6: joi.ref('a4'),
+                a7: { d: joi.ref('...a3') },
+                a8: { b: joi.ref('...a2') }
+            });
+
+            attempt({}, schema, prefs).to.equal({
+                a1: { b: { c: { d: { e: 6 } } } },
+                a2: { c: { d: { e: 6 } } },
+                a3: { e: 6 },
+                a4: 6,
+                a5: 6,
+                a6: 6,
+                a7: { d: { e: 6 } },
+                a8: { b: { c: { d: { e: 6 } } } }
+            });
+
+            expect(() => joi.value({ a: joi.ref('b'), b: joi.ref('a') })).to.throw('item added into group a created a dependencies error');
+        });
     });
 
-    it('numeric value().', () => {
-
-        attempt({}, joi.number().value(1)).to.equal(1);
-        attempt({}, joi.number().value('2')).to.equal(2);
-    });
-
-    it('undefined value().', () => {
-
-        attempt({}, joi.value()).to.equal(undefined);
-        attempt({}, joi.any().value()).to.equal(undefined);
-        attempt({}, joi.value(undefined)).to.equal(undefined);
-        attempt({}, joi.value(undefined).default(7)).to.equal(7);
-    });
+    describe('param()', () => {});
+    describe('pref()', () => {});
+    describe('pin()', () => {});
+    describe('pexpression() (and px())', () => {});
+    describe('whenParam()', () => {});
+    describe('intoWhen()', () => {});
+    describe('into() (and default)', () => {});
 
     it('param().', () => {
 
@@ -60,50 +162,6 @@ describe('JoiConfig', () => {
                 z: 5
             },
             w: 10
-        });
-    });
-
-    it('value() supports relative refs.', () => {
-
-        const params = { x: 6 };
-        const schema = joi.value({
-            a1: joi.ref('a8'),
-            a2: { c: joi.ref('...a7') },
-            a3: { e: joi.ref('...a6') },
-            a4: joi.ref('a5'),
-            a5: joi.ref('/x'),
-            a6: joi.ref('a4'),
-            a7: { d: joi.ref('...a3') },
-            a8: { b: joi.ref('...a2') }
-        });
-
-        attempt(params, schema).to.equal({
-            a1: { b: { c: { d: { e: 6 } } } },
-            a2: { c: { d: { e: 6 } } },
-            a3: { e: 6 },
-            a4: 6,
-            a5: 6,
-            a6: 6,
-            a7: { d: { e: 6 } },
-            a8: { b: { c: { d: { e: 6 } } } }
-        });
-    });
-
-    it('value() with expression.', () => {
-
-        const params = { x: 5, a: { b: 10 } };
-        const schema = joi.value({
-            x: 1,
-            y: {
-                z: joi.value(joi.x('{...x + .a.b}'))
-            }
-        });
-
-        attempt(params, schema).to.equal({
-            x: 1,
-            y: {
-                z: 11
-            }
         });
     });
 
