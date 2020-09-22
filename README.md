@@ -129,7 +129,7 @@ Joi.attempt(process.env, Joi.value({
 
 #### References
 
-You can use params as refs and expressions.  In order to reference params, simply reference the root `Joi.ref('/some.param')` or use the utilities `Joi.pref()` and `Joi.pexpression()` (or `Joi.px()`).
+You can use params as refs and expressions.  In order to reference params, simply reference the root `Joi.ref('/some.param')` or use the utilities `Joi.p.ref()` and `Joi.p.expression()` (or `Joi.p.x()`).
 
 ```js
 const params = { x: 5, a: { b: 10 } };
@@ -137,10 +137,10 @@ const params = { x: 5, a: { b: 10 } };
 Joi.attempt(params, Joi.value({
     x: 1,
     y: {
-        z: Joi.pref('x'),
+        z: Joi.p.ref('x'),
         w: Joi.ref('...x'),
-        q: Joi.px('{a.b * 2}'),
-        u: Joi.number().value(6).min(Joi.pref('x'))
+        q: Joi.p.x('{a.b * 2}'),
+        u: Joi.number().value(6).min(Joi.p.ref('x'))
     }
 }));
 

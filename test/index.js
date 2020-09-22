@@ -87,7 +87,8 @@ describe('JoiConfig', () => {
                 c: {
                     d: 'e',
                     f: { g: joi.value('h') }
-                }
+                },
+                i: joi.x('{$f.1 * $f.1}')
             });
 
             const prefsPassing = { context: { a: { b: 'c' }, d: 'e', f: [1, 2] } };
@@ -95,7 +96,8 @@ describe('JoiConfig', () => {
             attempt({}, schema, prefsPassing).to.equal({
                 a: ['b', 'c'],
                 b: 4,
-                c: { d: 'e', f: { g: 'h' } }
+                c: { d: 'e', f: { g: 'h' } },
+                i: 4
             });
 
             const prefsFailing = { context: { a: { b: 'c' }, d: 'e', f: [2, 2] } };
@@ -130,40 +132,152 @@ describe('JoiConfig', () => {
 
             expect(() => joi.value({ a: joi.ref('b'), b: joi.ref('a') })).to.throw('item added into group a created a dependencies error');
         });
+
+        it('resolves literal values.', () => {
+
+            const prefs = { context: { a: {} } };
+            const refSchema = joi.object().ref();
+
+            fail({}, refSchema.value(joi.ref('$a')), prefs).to.throw('"value" must be a Joi reference');
+            attempt({}, refSchema.value(joi.ref('$a'), { literal: true }), prefs).to.exist();
+        });
+
+        it('permits circular reference.', () => {
+
+            const a = {};
+            a.a = a;
+
+            const schema = joi.value(a);
+
+            attempt({}, schema).to.shallow.equal(a);
+        });
+
+        // TODO cloning tests
     });
 
-    describe('param()', () => {});
-    describe('pref()', () => {});
-    describe('pin()', () => {});
-    describe('pexpression() (and px())', () => {});
+    describe('param()', () => {
+
+        it('resolves params from validation input.', () => {
+
+            attempt({ x: '1' }, joi.any().param('x')).to.equal('1');
+            attempt({ x: '1' }, joi.number().param('x')).to.equal(1);
+            attempt({ x: ['a', 'b'] }, joi.any().param('x')).to.equal(['a', 'b']);
+            attempt({ x: { y: ['a', 'b'] } }, joi.array().param('x.y')).to.equal(['a', 'b']);
+            attempt({ x: { y: ['a', 'b'] } }, joi.string().param('x.y.1')).to.equal('b');
+            fail({ x: 1 }, joi.any().param('y').required()).to.throw('"value" is required');
+        });
+
+        it('supports shorthand for any().param().', () => {
+
+            expect(joi.param('x').describe()).to.equal(joi.param('x').describe());
+            expect(joi.param('x').describe()).to.equal({
+                type: 'any',
+                flags: {
+                    value: {
+                        literal: false,
+                        compiled: {
+                            ref: {
+                                ancestor: 'root',
+                                path: ['x']
+                            }
+                        },
+                        keys: []
+                    }
+                }
+            });
+
+            attempt({ x: '1' }, joi.param('x')).to.equal('1');
+            attempt({ x: { y: { z: 1 } } }, joi.param('x.y')).to.equal({ z: 1 });
+            fail({ x: 1 }, joi.param('y').required()).to.throw('"value" is required');
+        });
+
+        it('accepts ref options.', () => {
+
+            const params = { x: { y: 1 } };
+
+            attempt(params, joi.param('x/y', { separator: '/' })).to.equal(1);
+            attempt(params, joi.param('/x.y', { prefix: { root: '/' } })).to.equal(1);
+        });
+
+        it('can be placed deeply within value().', () => {
+
+            const params = { x: 1, y: { z: '2' } };
+            const schema = joi.value({
+                a: joi.param('x'),
+                b: {
+                    c: joi.number().param('y.z'),
+                    d: joi.param('w').default(3)
+                }
+            });
+
+            attempt(params, schema).to.equal({ a: 1, b: { c: 2, d: 3 } });
+        });
+    });
+
+    describe('p.ref()', () => {
+
+        it('resolves to input parameter in value().', () => {
+
+        });
+
+        it('resolves to input parameter in rules that accept a ref.', () => {
+
+        });
+
+        it('resolves to input parameter in when().', () => {
+
+        });
+
+        it('accepts ref options.', () => {
+
+        });
+
+        it('is equivalent to a root reference without a prefix.', () => {
+
+        });
+
+        it('is the connection between value() and param().', () => {
+
+        });
+    });
+
+    describe('p.in()', () => {
+
+        it('resolves to input parameter in rules that accept in-references.', () => {
+
+        });
+
+        it('accepts ref options.', () => {
+
+        });
+    });
+
+    describe('p.expression() (and p.x())', () => {
+
+        it('evaluates using input parameters in value().', () => {
+
+        });
+
+        it('evaluates using input parameters in rules that accept an expression.', () => {
+
+        });
+
+        it('evaluates using input parameters in when().', () => {
+
+        });
+
+        it('accepts expression options.', () => {
+
+        });
+
+        it('is aliased to p.x().', () => {
+
+        });
+    });
+
     describe('whenParam()', () => {});
     describe('intoWhen()', () => {});
     describe('into() (and default)', () => {});
-
-    it('param().', () => {
-
-        attempt({ x: 5 }, joi.param('x')).to.equal(5);
-    });
-
-    it('params via value() and ref.', () => {
-
-        const params = { x: 5, a: { b: 10 } };
-        const schema = joi.value({
-            x: 1,
-            y: {
-                z: joi.value(joi.ref('x', { ancestor: 0 }))
-            },
-            w: joi.value(joi.ref('a.b', { ancestor: 0 }))
-        });
-
-        attempt(params, schema).to.equal({
-            x: 1,
-            y: {
-                z: 5
-            },
-            w: 10
-        });
-    });
 
     it('value() and params() with ref.', () => {
 
@@ -357,16 +471,6 @@ describe('JoiConfig', () => {
         });
 
         attempt(params, schema).to.equal(true);
-    });
-
-    it('allows value() with circular reference.', () => {
-
-        const a = {};
-        a.a = a;
-
-        const schema = joi.value(a);
-
-        attempt({}, schema).to.shallow.equal(a);
     });
 
     it('allows refs in standard rules.', () => {
