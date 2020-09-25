@@ -330,6 +330,22 @@ describe('JoiConfig', () => {
 
         it('is the connection between value() and param().', () => {
 
+            expect(joi.value(joi.p.ref('x')).describe()).to.equal(joi.param('x').describe());
+            expect(joi.value(joi.p.ref('x')).describe()).to.equal({
+                type: 'any',
+                flags: {
+                    value: {
+                        compiled: {
+                            ref: {
+                                ancestor: 'root',
+                                path: ['x']
+                            }
+                        },
+                        keys: [],
+                        literal: false
+                    }
+                }
+            });
         });
     });
 
