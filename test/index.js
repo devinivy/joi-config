@@ -7,6 +7,7 @@ const Lab = require('@hapi/lab');
 const Code = require('@hapi/code');
 const JoiBase = require('joi');
 const JoiConfig = require('..');
+const Joi = require('joi');
 
 // Test shortcuts
 
@@ -218,22 +219,113 @@ describe('JoiConfig', () => {
 
         it('resolves to input parameter in value().', () => {
 
+            const params = { x: 1, y: { z: '2' } };
+
+            attempt(params, joi.value(joi.p.ref('y.z'))).to.equal('2');
+
+            const schema = joi.value({
+                a: joi.value(joi.p.ref('x')),
+                b: {
+                    c: joi.number().value(joi.p.ref('y.z')),
+                    d: joi.value(joi.p.ref('w')).default(3)
+                }
+            });
+
+            attempt(params, schema).to.equal({ a: 1, b: { c: 2, d: 3 } });
         });
 
         it('resolves to input parameter in rules that accept a ref.', () => {
 
+            const params = { x: 1, y: { z: '2' }, w: 3 };
+
+            const x = joi.p.ref('x');
+            const yz = joi.p.ref('y.z');
+            const w = joi.p.ref('w');
+
+            const schemas = {};
+
+            // default()
+            schemas.default = joi.value(null).empty(null).default(yz);
+            attempt(params, schemas.default).to.equal('2');
+
+            // min() / max()
+
+            schemas.minPass = joi.number().value(1).min(x);
+            attempt(params, schemas.minPass).to.equal(1);
+
+            schemas.minFail = joi.number().value(0).min(x);
+            fail(params, schemas.minFail).to.throw('"value" must be greater than or equal to ref:root:x');
+
+            // length()
+            schemas.lengthPass = joi.string().value('abc').length(w);
+            attempt(params, schemas.lengthPass).to.equal('abc');
+
+            schemas.lengthFail = joi.string().value('abcd').length(w);
+            fail(params, schemas.lengthFail).to.throw('"value" length must be ref:root:w characters long');
+
+            // assert()
+            schemas.assertPass = joi.object().assert('.a', yz).value({ a: '2' });
+            attempt(params, schemas.lengthPass).to.equal('abc');
+
+            schemas.assertFail = joi.object().assert('.a', yz).value({ a: '4' });
+            fail(params, schemas.assertFail).to.throw('"value" is invalid because "a" failed to pass the assertion test');
         });
 
         it('resolves to input parameter in when().', () => {
 
+            const params = { x: 1, y: { z: '2' }, w: 3 };
+
+            const x = joi.p.ref('x');
+            const yz = joi.p.ref('y.z');
+            const w = joi.p.ref('w');
+
+            const schemaSubject = joi.value({
+                a: joi.value('!').when(x, { is: 1, then: joi.forbidden() })
+            });
+
+            fail(params, schemaSubject).to.throw('"a" is not allowed');
+
+            const schemaCondition = joi.value({
+                a: joi.value('!').when('b', { is: Joi.valid(yz), then: joi.forbidden() }),
+                b: '2'
+            });
+
+            fail(params, schemaCondition).to.throw('"a" is not allowed');
+
+            const schemaConsequent = joi.value({
+                a: joi.value('!').when('b', { is: '2', then: joi.string().length(w) }),
+                b: '2'
+            });
+
+            fail(params, schemaConsequent).to.throw('"a" length must be ref:root:w characters long');
         });
 
         it('accepts ref options.', () => {
 
+            const params = { x: { y: 1 } };
+
+            attempt(params, joi.value(joi.p.ref('x/y', { separator: '/' }))).to.equal(1);
+            attempt(params, joi.value(joi.p.ref('/x.y', { prefix: { root: '/' } }))).to.equal(1);
         });
 
         it('is equivalent to a root reference without a prefix.', () => {
 
+            expect(joi.value(joi.p.ref('x')).describe()).to.equal(joi.value(joi.ref('/x')).describe());
+            expect(joi.value(joi.p.ref('x')).describe()).to.equal({
+                type: 'any',
+                flags: {
+                    value: {
+                        compiled: {
+                            ref: {
+                                ancestor: 'root',
+                                path: ['x']
+                            }
+                        },
+                        keys: [],
+                        literal: false
+                    }
+                }
+            });
         });
 
         it('is the connection between value() and param().', () => {
