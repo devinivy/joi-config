@@ -353,10 +353,23 @@ describe('JoiConfig', () => {
 
         it('resolves to input parameter in rules that accept in-references.', () => {
 
+            const params = { a: [1, 2, 3], b: ['one', 'two', 'three'] };
+
+            attempt(params, joi.value(2).valid(joi.p.in('a'))).to.equal(2);
+            fail(params, joi.value(4).valid(joi.p.in('a'))).to.throw('"value" must be [ref:root:a]');
+
+            attempt(params, joi.value('four').invalid(joi.p.in('b'))).to.equal('four');
+            fail(params, joi.value('two').invalid(joi.p.in('b'))).to.throw('"value" contains an invalid value');
         });
 
         it('accepts ref options.', () => {
 
+            const params = { x: { y: [1, 2] } };
+
+            attempt(params, joi.value(2).valid(joi.p.in('x/y', { separator: '/' }))).to.equal(2);
+            fail(params, joi.value(4).valid(joi.p.in('x/y', { separator: '/' }))).to.throw('"value" must be [ref:root:x/y]');
+            attempt(params, joi.value(2).valid(joi.p.in('/x.y', { prefix: { root: '/' } }))).to.equal(2);
+            fail(params, joi.value(4).valid(joi.p.in('/x.y', { prefix: { root: '/' } }))).to.throw('"value" must be [ref:root:x.y]');
         });
     });
 
@@ -364,22 +377,120 @@ describe('JoiConfig', () => {
 
         it('evaluates using input parameters in value().', () => {
 
+            const params = { x: 1, y: { z: '2' }, w: 3 };
+
+            attempt(params, joi.value(joi.p.expression('{y.z + \'2\'}'))).to.equal('22');
+
+            const schema = joi.value({
+                a: joi.value(joi.p.expression('{x * 5}')),
+                b: {
+                    c: joi.number().value(joi.p.expression('{y.z + \'2\'}')),
+                    d: joi.value(joi.p.expression('{x + w}'))
+                }
+            });
+
+            attempt(params, schema).to.equal({ a: 5, b: { c: 22, d: 4 } });
         });
 
         it('evaluates using input parameters in rules that accept an expression.', () => {
 
+            const params = { x: 5, y: { z: '2' }, w: 4 };
+
+            const x = joi.p.expression('{x / 5}');
+            const yz = joi.p.expression('{y.z + \'2\'}');
+            const w = joi.p.expression('{w - 1}');
+
+            const schemas = {};
+
+            // default()
+            schemas.default = joi.value(null).empty(null).default(yz);
+            attempt(params, schemas.default).to.equal('22');
+
+            // min() / max()
+
+            schemas.minPass = joi.number().value(1).min(x);
+            attempt(params, schemas.minPass).to.equal(1);
+
+            schemas.minFail = joi.number().value(0).min(x);
+            fail(params, schemas.minFail).to.throw('"value" must be greater than or equal to {x / 5}');
+
+            // length()
+            schemas.lengthPass = joi.string().value('abc').length(w);
+            attempt(params, schemas.lengthPass).to.equal('abc');
+
+            schemas.lengthFail = joi.string().value('abcd').length(w);
+            fail(params, schemas.lengthFail).to.throw('"value" length must be {w - 1} characters long');
+
+            // assert()
+            schemas.assertPass = joi.object().assert('.a', yz).value({ a: '22' });
+            attempt(params, schemas.lengthPass).to.equal('abc');
+
+            schemas.assertFail = joi.object().assert('.a', yz).value({ a: '24' });
+            fail(params, schemas.assertFail).to.throw('"value" is invalid because "a" failed to pass the assertion test');
         });
 
         it('evaluates using input parameters in when().', () => {
 
+            const params = { x: 5, y: { z: '2' }, w: 4 };
+
+            const yz = joi.p.expression('{y.z + \'2\'}');
+            const w = joi.p.expression('{w - 1}');
+
+            const schemaCondition = joi.value({
+                a: joi.value('!').when('b', { is: Joi.valid(yz), then: joi.forbidden() }),
+                b: '22'
+            });
+
+            fail(params, schemaCondition).to.throw('"a" is not allowed');
+
+            const schemaConsequent = joi.value({
+                a: joi.value('!').when('b', { is: '2', then: joi.string().length(w) }),
+                b: '2'
+            });
+
+            fail(params, schemaConsequent).to.throw('"a" length must be {w - 1} characters long');
         });
 
         it('accepts expression options.', () => {
 
+            const params = { x: { y: 2 } };
+
+            attempt(params, joi.value(joi.p.expression('{x:y * 5}', { separator: ':' }))).to.equal(10);
+            attempt(params, joi.value(joi.p.expression('{:x.y * 5}', { prefix: { root: ':' } }))).to.equal(10);
         });
 
         it('is aliased to p.x().', () => {
 
+            expect(joi.value(joi.p.x('{x + 1}')).describe()).to.equal(joi.value(joi.p.expression('{x + 1}')).describe());
+            expect(joi.value(joi.p.x('{x + 1}')).describe()).to.equal({
+                type: 'any',
+                flags: {
+                    value: {
+                        compiled: {
+                            template: '{x + 1}',
+                            options: {
+                                prefix: { root: '' }
+                            }
+                        },
+                        keys: [],
+                        literal: false
+                    }
+                }
+            });
+
+            const params = { x: 1, y: { z: '2' }, w: 3 };
+
+            attempt(params, joi.value(joi.p.x('{y.z + \'2\'}'))).to.equal('22');
+
+            const schema = joi.value({
+                a: joi.value(joi.p.x('{x * 5}')),
+                b: {
+                    c: joi.number().value(joi.p.x('{y.z + \'2\'}')),
+                    d: joi.value(joi.p.x('{x + w}'))
+                }
+            });
+
+            attempt(params, schema).to.equal({ a: 5, b: { c: 22, d: 4 } });
         });
     });
 
