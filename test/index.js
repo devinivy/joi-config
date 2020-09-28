@@ -494,7 +494,107 @@ describe('JoiConfig', () => {
         });
     });
 
-    describe('whenParam()', () => {});
+    describe('whenParam()', () => {
+        // TODO document/test caveat around usage as direct schema, e.g. not as a key's schema.
+
+        it('applies a when() referencing a param.', () => {
+
+            const whenParam = (val) => {
+
+                return joi.any().value(val).whenParam('x', {
+                    switch: [
+                        { is: 1, then: joi.valid(11) },
+                        { is: 2, then: joi.forbidden() }
+                    ],
+                    otherwise: joi.number()
+                });
+            };
+
+            attempt({ x: 1 }, joi.value({ a: whenParam(11) })).to.equal({ a: 11 });
+            fail({ x: 1 }, joi.value({ a: whenParam(12) })).to.throw('"a" must be [11]');
+
+            attempt({ x: 2 }, joi.value({ a: whenParam(undefined) })).to.equal({});
+            fail({ x: 2 }, joi.value({ a: whenParam(12) })).to.throw('"a" is not allowed');
+
+            attempt({ x: 3 }, joi.value({ a: whenParam(11) })).to.equal({ a: 11 });
+            fail({ x: 3 }, joi.value({ a: whenParam('twelve') })).to.throw('"a" must be a number');
+        });
+
+        it('conditionally strips array items.', () => {
+
+            const schema = joi.value([
+                1,
+                joi.value(2)
+                    .whenParam('x', { is: 1, then: joi.strip() }),
+                3
+            ]);
+
+            attempt({ x: 1 }, schema).to.equal([1, 3]);
+            attempt({ x: 0 }, schema).to.equal([1, 2, 3]);
+        });
+
+        it('conditionally strips object items.', () => {
+
+            const schema = joi.value({
+                x: 1,
+                y: joi.value(2)
+                    .whenParam('x', { is: 1, then: joi.strip() }),
+                z: 3
+            });
+
+            attempt({ x: 1 }, schema).to.equal({ x: 1, z: 3 });
+            attempt({ x: 0 }, schema).to.equal({ x: 1, y: 2, z: 3 });
+        });
+
+        it('supports shorthand for any().whenParam().', () => {
+
+            const whenParam = (val) => {
+
+                return joi.whenParam('x', {
+                    switch: [
+                        { is: 1, then: joi.valid(11) },
+                        { is: 2, then: joi.forbidden() }
+                    ],
+                    otherwise: joi.number()
+                }).value(val);
+            };
+
+            attempt({ x: 1 }, joi.value({ a: whenParam(11) })).to.equal({ a: 11 });
+            fail({ x: 1 }, joi.value({ a: whenParam(12) })).to.throw('"a" must be [11]');
+
+            attempt({ x: 2 }, joi.value({ a: whenParam(undefined) })).to.equal({});
+            fail({ x: 2 }, joi.value({ a: whenParam(12) })).to.throw('"a" is not allowed');
+
+            attempt({ x: 3 }, joi.value({ a: whenParam(11) })).to.equal({ a: 11 });
+            fail({ x: 3 }, joi.value({ a: whenParam('twelve') })).to.throw('"a" must be a number');
+        });
+
+        it('is equivalent to a when() with a param ref.', () => {
+
+            const whenParam = joi.whenParam('x', { is: joi.exist(), then: joi.forbidden() });
+            const whenParamRef = joi.when(joi.p.ref('x'), { is: joi.exist(), then: joi.forbidden() });
+
+            expect(whenParam.describe()).to.equal(whenParamRef.describe());
+            expect(whenParam.describe()).to.equal({
+                type: 'any',
+                whens: [{
+                    ref: {
+                        ancestor: 'root',
+                        path: ['x']
+                    },
+                    is: {
+                        type: 'any',
+                        flags: { presence: 'required' }
+                    },
+                    then: {
+                        type: 'any',
+                        flags: { presence: 'forbidden' }
+                    }
+                }]
+            });
+        });
+    });
+
     describe('intoWhen()', () => {});
     describe('into() (and default)', () => {});
 
@@ -597,17 +697,6 @@ describe('JoiConfig', () => {
         });
     });
 
-    it('compatibility with when()', () => {
-
-        const schema = joi.value({
-            x: joi.value('x')
-                .when(joi.ref('/a'), { is: 1, then: joi.strip() })
-        });
-
-        attempt({ a: 1 }, schema).to.equal({});
-        attempt({ a: 2 }, schema).to.equal({ x: 'x' });
-    });
-
     it('into() with object.', () => {
 
         const schema = joi.value({
@@ -700,31 +789,5 @@ describe('JoiConfig', () => {
 
         attempt({ min: 10 }, schema).to.equal({ x: 11 });
         expect(() => joi.attempt({ min: 12 }, schema)).to.throw('"x" must be greater than or equal to ref:root:min');
-    });
-
-    it('whenParam() conditionally strips array items.', () => {
-
-        const schema = joi.value([
-            1,
-            joi.value(2)
-                .whenParam('x', { is: 1, then: joi.strip() }),
-            3
-        ]);
-
-        attempt({ x: 1 }, schema).to.equal([1, 3]);
-        attempt({ x: 0 }, schema).to.equal([1, 2, 3]);
-    });
-
-    it('whenParam() conditionally strips object items.', () => {
-
-        const schema = joi.value({
-            x: 1,
-            y: joi.value(2)
-                .whenParam('x', { is: 1, then: joi.strip() }),
-            z: 3
-        });
-
-        attempt({ x: 1 }, schema).to.equal({ x: 1, z: 3 });
-        attempt({ x: 0 }, schema).to.equal({ x: 1, y: 2, z: 3 });
     });
 });
