@@ -779,7 +779,112 @@ describe('JoiConfig', () => {
         });
     });
 
-    describe('into() (and default)', () => {});
+    describe('into() (and default)', () => {
+
+        it('maps value using an object.', () => {
+
+            const schema = joi.value({
+                x: joi.param('a').into({
+                    one: 1,
+                    two: 2
+                })
+            });
+
+            attempt({ a: 'one' }, schema).to.equal({ x: 1 });
+            attempt({ a: 'two' }, schema).to.equal({ x: 2 });
+            attempt({ a: 'three' }, schema).to.equal({});
+        });
+
+        it('maps value using an array.', () => {
+
+            const schema = joi.value({
+                x: joi.param('a').into([
+                    ['one', 1],
+                    ['two', 2]
+                ])
+            });
+
+            attempt({ a: 'one' }, schema).to.equal({ x: 1 });
+            attempt({ a: 'two' }, schema).to.equal({ x: 2 });
+            attempt({ a: 'three' }, schema).to.equal({});
+        });
+
+        it('maps value using a Map.', () => {
+
+            const schema = joi.value({
+                x: joi.param('a').into(new Map([
+                    ['one', 1],
+                    ['two', 2]
+                ]))
+            });
+
+            attempt({ a: 'one' }, schema).to.equal({ x: 1 });
+            attempt({ a: 'two' }, schema).to.equal({ x: 2 });
+            attempt({ a: 'three' }, schema).to.equal({});
+        });
+
+        it('maps value using an object containing defaults, allowing default symbol to override $default.', () => {
+
+            const schema1 = joi.value({
+                x: joi.param('a').into({
+                    one: 1,
+                    two: 2,
+                    $default: 0
+                })
+            });
+
+            attempt({ a: 'three' }, schema1).to.equal({ x: 0 });
+
+            const schema2 = joi.value({
+                x: joi.param('a').into({
+                    one: 1,
+                    two: 2,
+                    [joi.default]: 0
+                })
+            });
+
+            attempt({ a: 'three' }, schema2).to.equal({ x: 0 });
+
+            const schema3 = joi.value({
+                x: joi.param('a').into({
+                    one: 1,
+                    two: 2,
+                    $default: 3,
+                    [joi.default]: 0
+                })
+            });
+
+            attempt({ a: 'three' }, schema3).to.equal({ x: 0 });
+            attempt({ a: '$default' }, schema3).to.equal({ x: 3 });
+        });
+
+        it('maps value using an array with default.', () => {
+
+            const schema = joi.value({
+                x: joi.param('a').into([
+                    ['one', 1],
+                    [joi.default, 2]
+                ])
+            });
+
+            attempt({ a: 'one' }, schema).to.equal({ x: 1 });
+            attempt({ a: 'two' }, schema).to.equal({ x: 2 });
+        });
+
+
+        it('maps value using a Map with default.', () => {
+
+            const schema = joi.value({
+                x: joi.param('a').into(new Map([
+                    ['one', 1],
+                    [joi.default, 2]
+                ]))
+            });
+
+            attempt({ a: 'one' }, schema).to.equal({ x: 1 });
+            attempt({ a: 'two' }, schema).to.equal({ x: 2 });
+        });
+    });
 
     it('value() and params() with ref.', () => {
 
@@ -833,61 +938,5 @@ describe('JoiConfig', () => {
             y: { z: ['s', 'e', 'e'] },
             w: ['item1', 'item3']
         });
-    });
-
-    it('into() with object.', () => {
-
-        const schema = joi.value({
-            x: joi.param('a').into({
-                one: 1,
-                two: 2
-            })
-        });
-
-        attempt({ a: 'one' }, schema).to.equal({
-            x: 1
-        });
-
-        attempt({ a: 'two' }, schema).to.equal({
-            x: 2
-        });
-
-        attempt({ a: 'three' }, schema).to.equal({});
-    });
-
-    it('into() with object and defaults.', () => {
-
-        const schema1 = joi.value({
-            x: joi.param('a').into({
-                one: 1,
-                two: 2,
-                $default: 0
-            })
-        });
-
-        attempt({ a: 'three' }, schema1).to.equal({ x: 0 });
-
-        const schema2 = joi.value({
-            x: joi.param('a').into({
-                one: 1,
-                two: 2,
-                [joi.default]: 0
-            })
-        });
-
-        attempt({ a: 'three' }, schema2).to.equal({ x: 0 });
-
-        const schema3 = joi.value({
-            x: joi.param('a').into({
-                one: 1,
-                two: 2,
-                $default: 3,
-                [joi.default]: 0
-            })
-        });
-
-        attempt({ a: 'three' }, schema3).to.equal({ x: 0 });
-
-        attempt({ a: '$default' }, schema3).to.equal({ x: 3 });
     });
 });
