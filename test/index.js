@@ -25,6 +25,63 @@ describe('JoiConfig', () => {
         expect(JoiBase.value).to.not.be.a.function();
     });
 
+    it('respects abortEarly validation option.', () => {
+
+        const params = { x: 1, y: { z: '2' } };
+        const schema = joi.value({
+            a: joi.param('x').valid('1'),
+            b: {
+                c: joi.number().param('y.z').max(1),
+                d: joi.param('w').default(3)
+            }
+        });
+
+        const abortNever = schema.validate(params, { abortEarly: false });
+        expect(abortNever.value).to.equal({ a: 1, b: { c: 2, d: 3 } });
+        expect(abortNever.error.message).to.equal('"b.c" must be less than or equal to 1. "a" must be [1]');
+        expect(abortNever.error.details).to.equal([
+            {
+                type: 'number.max',
+                path: ['b', 'c'],
+                message: '"b.c" must be less than or equal to 1',
+                context: {
+                    key: 'c',
+                    label: 'b.c',
+                    limit: 1,
+                    value: 2
+                }
+            },
+            {
+                type: 'any.only',
+                path: ['a'],
+                message: '"a" must be [1]',
+                context: {
+                    key: 'a',
+                    label: 'a',
+                    valids: ['1'],
+                    value: 1
+                }
+            }
+        ]);
+
+        const abortEarly = schema.validate(params, { abortEarly: true });
+        expect(abortEarly.value).to.equal({ b: { c: 2, d: 3 } });
+        expect(abortEarly.error.message).to.equal('"b.c" must be less than or equal to 1');
+        expect(abortEarly.error.details).to.equal([
+            {
+                type: 'number.max',
+                path: ['b', 'c'],
+                message: '"b.c" must be less than or equal to 1',
+                context: {
+                    key: 'c',
+                    label: 'b.c',
+                    limit: 1,
+                    value: 2
+                }
+            }
+        ]);
+    });
+
     const attempt = (...args) => expect(joi.attempt(...args));
     const fail = (...args) => expect(() => joi.attempt(...args));
 
@@ -153,7 +210,27 @@ describe('JoiConfig', () => {
             attempt({}, schema).to.shallow.equal(a);
         });
 
-        // TODO cloning tests
+        it('does not clone values that do not contain a schema.', () => {
+
+            const b = { c: [] };
+            const root = {
+                a: { b: joi.value(b) },
+                d: [1, {}, new Map()]
+            };
+
+            const value = joi.attempt({}, joi.value(root));
+
+            expect(value).to.equal({ a: { b: { c: [] } }, d: [1, {}, new Map()] });
+            expect(value).to.not.shallow.equal(root);
+            expect(value.a).to.not.shallow.equal(root.a);
+            expect(value.a.b).to.shallow.equal(b);
+            expect(value.a.b.c).to.shallow.equal(b.c);
+            expect(value.d).to.shallow.equal(root.d);
+            value.d.forEach((item, i) => {
+
+                expect(item).to.shallow.equal(root.d[i]);
+            });
+        });
     });
 
     describe('param()', () => {
@@ -212,6 +289,26 @@ describe('JoiConfig', () => {
             });
 
             attempt(params, schema).to.equal({ a: 1, b: { c: 2, d: 3 } });
+        });
+
+        it('can be resolved from a relative ref.', () => {
+
+            const params = { a: 5, b: { c: 10 } };
+            const schema = joi.value({
+                x: joi.param('a'),
+                y: {
+                    z: joi.param('b.c'),
+                    w: joi.param('b.d').default(joi.ref('...x'))
+                }
+            });
+
+            attempt(params, schema).to.equal({
+                x: 5,
+                y: {
+                    z: 10,
+                    w: 5
+                }
+            });
         });
     });
 
@@ -777,6 +874,43 @@ describe('JoiConfig', () => {
 
             attempt(params, schema).to.equal(true);
         });
+
+        it('works when combining value(), param(), and complex values.', () => {
+
+            // This is just a "kitchen sink" test that was written early on, preserved
+            // in order to test some of the previous cases mixed together.
+
+            const params = { a: 1, b: 'twelve', c: ['s', 'e', 'e'] };
+            const schema = joi.value({
+                x: joi.param('a').intoWhen({
+                    is: 1,
+                    then: joi.value('one'),
+                    otherwise: joi.value(null)
+                }),
+                y: {
+                    z: joi.value('twelve').intoWhen({
+                        is: 'twelve',
+                        then: joi.param('c'),
+                        otherwise: joi.value(null)
+                    })
+                },
+                w: joi.array().value([
+                    'item1',
+                    joi.param('a').intoWhen({
+                        is: 2,
+                        then: 'item2',
+                        otherwise: joi.strip()
+                    }),
+                    'item3'
+                ])
+            });
+
+            attempt(params, schema).to.equal({
+                x: 'one',
+                y: { z: ['s', 'e', 'e'] },
+                w: ['item1', 'item3']
+            });
+        });
     });
 
     describe('into() (and default)', () => {
@@ -900,116 +1034,5 @@ describe('JoiConfig', () => {
             attempt({ a: 'one' }, joi.value({ x: joi.param('a').into([]) })).to.equal({});
             attempt({ a: 'one' }, joi.value({ x: joi.param('a').into(new Map()) })).to.equal({});
         });
-    });
-
-    it('value() and params() with ref.', () => {
-
-        const params = { x: 5, a: { b: 10 } };
-        const schema = joi.value({
-            y: joi.param('x'),
-            z: {
-                w: joi.param('a.b'),
-                aa: joi.param('a.c').default(joi.ref('...y'))
-            }
-        });
-
-        attempt(params, schema).to.equal({
-            y: 5,
-            z: {
-                w: 10,
-                aa: 5
-            }
-        });
-    });
-
-    it('value() and param() with intoWhen().', () => {
-
-        const params = { a: 1, b: 'twelve', c: ['s', 'e', 'e'] };
-        const schema = joi.value({
-            x: joi.param('a').intoWhen({
-                is: 1,
-                then: joi.value('one'),
-                otherwise: joi.value(null)
-            }),
-            y: {
-                z: joi.value('twelve').intoWhen({
-                    is: 'twelve',
-                    then: joi.param('c'),
-                    otherwise: joi.value(null)
-                })
-            },
-            w: joi.array().value([
-                'item1',
-                joi.param('a').intoWhen({
-                    is: 2,
-                    then: 'item2',
-                    otherwise: joi.strip()
-                }),
-                'item3'
-            ])
-        });
-
-        attempt(params, schema).to.equal({
-            x: 'one',
-            y: { z: ['s', 'e', 'e'] },
-            w: ['item1', 'item3']
-        });
-    });
-
-    it('respects abortEarly validation option.', () => {
-
-        const params = { x: 1, y: { z: '2' } };
-        const schema = joi.value({
-            a: joi.param('x').valid('1'),
-            b: {
-                c: joi.number().param('y.z').max(1),
-                d: joi.param('w').default(3)
-            }
-        });
-
-        const abortNever = schema.validate(params, { abortEarly: false });
-        expect(abortNever.value).to.equal({ a: 1, b: { c: 2, d: 3 } });
-        expect(abortNever.error.message).to.equal('"b.c" must be less than or equal to 1. "a" must be [1]');
-        expect(abortNever.error.details).to.equal([
-            {
-                type: 'number.max',
-                path: ['b', 'c'],
-                message: '"b.c" must be less than or equal to 1',
-                context: {
-                    key: 'c',
-                    label: 'b.c',
-                    limit: 1,
-                    value: 2
-                }
-            },
-            {
-                type: 'any.only',
-                path: ['a'],
-                message: '"a" must be [1]',
-                context: {
-                    key: 'a',
-                    label: 'a',
-                    valids: ['1'],
-                    value: 1
-                }
-            }
-        ]);
-
-        const abortEarly = schema.validate(params, { abortEarly: true });
-        expect(abortEarly.value).to.equal({ b: { c: 2, d: 3 } });
-        expect(abortEarly.error.message).to.equal('"b.c" must be less than or equal to 1');
-        expect(abortEarly.error.details).to.equal([
-            {
-                type: 'number.max',
-                path: ['b', 'c'],
-                message: '"b.c" must be less than or equal to 1',
-                context: {
-                    key: 'c',
-                    label: 'b.c',
-                    limit: 1,
-                    value: 2
-                }
-            }
-        ]);
     });
 });
