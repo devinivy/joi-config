@@ -1,6 +1,6 @@
 {
   "name": "joi-config",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Joi extension for building airtight configurations",
   "main": "lib/index.js",
   "engines": {
