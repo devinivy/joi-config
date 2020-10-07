@@ -1,31 +1,39 @@
 # joi-config
-Joi extension for building safe configurations
+[Joi](https://joi.dev/) extension for building airtight configurations
 
 [![Build Status](https://travis-ci.org/devinivy/joi-config.svg?branch=master)](https://travis-ci.org/devinivy/joi-config) [![Coverage Status](https://coveralls.io/repos/devinivy/joi-config/badge.svg?branch=master&service=github)](https://coveralls.io/github/devinivy/joi-config?branch=master)
 
 ## Usage
-Here are some provisional instructions and examples for now, while things continue to settle.
+> See also the [API Reference](API.md)
 
-### Install
-
-```sh
-git clone git@github.com:devinivy/joi-config.git
-mkdir new-project && cd new-project
-npm init
-npm install joi
-npx shrimport ../joi-config
-```
-
-### Usage
+The idea behind joi-config is to make it easy to build dynamic configurations using Joi's expressiveness and validation.
 
 ```js
 const Joi = require('joi')
     .extend(require('joi-config'));
+
+// Returns a validated configuration based on the contents of process.env
+
+Joi.attempt(process.env, Joi.value({
+    server: {
+        host: 'localhost',
+        port: Joi.number().param('PORT').max(65535).default(3000),
+    },
+    register: {
+        plugins: [
+            { plugin: '../lib' },
+            Joi.value({ plugin: 'hpal-debug' })
+                .whenParam('NODE_ENV', { is: 'production', then: Joi.strip() })
+        ]
+    }
+}));
 ```
 
 ### Examples
 
 #### Values
+
+Being able to colocate values and validation is a fundamental idea of joi-config.  It all starts with `value()`, but things continue to get a lot more interesting if you read on!
 
 ```js
 // The input is not relevant for plain values,
@@ -33,19 +41,15 @@ const Joi = require('joi')
 const input = {};
 
 // Implicit any() base type
-
 Joi.attempt(input, Joi.value('88')); // Returns '88'
 
 // Use number() base type for further validation (and in turn, Joi.number()'s type coercion)
-
 Joi.attempt(input, Joi.number().value('88')); // Returns 88 as a number
 
 // Objects and arrays work
-
 Joi.attempt(input, Joi.value({ a: 'x' })); // Returns { a: 'x' }
 
 // Nested values also work
-
 Joi.attempt(input, Joi.value({ // Returns { a: 88 }
     a: Joi.number().value('88')
 }));

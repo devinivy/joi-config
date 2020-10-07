@@ -1,7 +1,7 @@
 {
   "name": "joi-config",
   "version": "0.0.0",
-  "description": "Joi extension for building safe configurations",
+  "description": "Joi extension for building airtight configurations",
   "main": "lib/index.js",
   "engines": {
     "node": ">=12.x.x"
@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@hapi/code": "8.x.x",
-    "@hapi/lab": "23.x.x",
+    "@hapi/lab": "24.x.x",
     "joi": "17.x.x"
   }
 }
