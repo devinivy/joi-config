@@ -800,13 +800,17 @@ describe('JoiConfig', () => {
             const schema = joi.value({
                 x: joi.param('a').into([
                     ['one', 1],
-                    ['two', 2]
+                    ['two', 2],
+                    [joi.number(), 3],
+                    [joi.object(), 4]
                 ])
             });
 
             attempt({ a: 'one' }, schema).to.equal({ x: 1 });
             attempt({ a: 'two' }, schema).to.equal({ x: 2 });
-            attempt({ a: 'three' }, schema).to.equal({});
+            attempt({ a: 33 }, schema).to.equal({ x: 3 });
+            attempt({ a: {} }, schema).to.equal({ x: 4 });
+            attempt({ a: [] }, schema).to.equal({});
         });
 
         it('maps value using a Map.', () => {
@@ -814,13 +818,17 @@ describe('JoiConfig', () => {
             const schema = joi.value({
                 x: joi.param('a').into(new Map([
                     ['one', 1],
-                    ['two', 2]
+                    ['two', 2],
+                    [joi.number(), 3],
+                    [joi.object(), 4]
                 ]))
             });
 
             attempt({ a: 'one' }, schema).to.equal({ x: 1 });
             attempt({ a: 'two' }, schema).to.equal({ x: 2 });
-            attempt({ a: 'three' }, schema).to.equal({});
+            attempt({ a: 33 }, schema).to.equal({ x: 3 });
+            attempt({ a: {} }, schema).to.equal({ x: 4 });
+            attempt({ a: [] }, schema).to.equal({});
         });
 
         it('maps value using an object containing defaults, allowing default symbol to override $default.', () => {
@@ -884,6 +892,14 @@ describe('JoiConfig', () => {
             attempt({ a: 'one' }, schema).to.equal({ x: 1 });
             attempt({ a: 'two' }, schema).to.equal({ x: 2 });
         });
+
+        it('strips value in absence of a mapper.', () => {
+
+            attempt({ a: 'one' }, joi.value({ x: joi.param('a').into() })).to.equal({});
+            attempt({ a: 'one' }, joi.value({ x: joi.param('a').into({}) })).to.equal({});
+            attempt({ a: 'one' }, joi.value({ x: joi.param('a').into([]) })).to.equal({});
+            attempt({ a: 'one' }, joi.value({ x: joi.param('a').into(new Map()) })).to.equal({});
+        });
     });
 
     it('value() and params() with ref.', () => {
@@ -927,7 +943,7 @@ describe('JoiConfig', () => {
                 joi.param('a').intoWhen({
                     is: 2,
                     then: 'item2',
-                    otherwise: joi.strip() // TODO pull this functionality into separate test
+                    otherwise: joi.strip()
                 }),
                 'item3'
             ])
@@ -938,5 +954,62 @@ describe('JoiConfig', () => {
             y: { z: ['s', 'e', 'e'] },
             w: ['item1', 'item3']
         });
+    });
+
+    it('respects abortEarly validation option.', () => {
+
+        const params = { x: 1, y: { z: '2' } };
+        const schema = joi.value({
+            a: joi.param('x').valid('1'),
+            b: {
+                c: joi.number().param('y.z').max(1),
+                d: joi.param('w').default(3)
+            }
+        });
+
+        const abortNever = schema.validate(params, { abortEarly: false });
+        expect(abortNever.value).to.equal({ a: 1, b: { c: 2, d: 3 } });
+        expect(abortNever.error.message).to.equal('"b.c" must be less than or equal to 1. "a" must be [1]');
+        expect(abortNever.error.details).to.equal([
+            {
+                type: 'number.max',
+                path: ['b', 'c'],
+                message: '"b.c" must be less than or equal to 1',
+                context: {
+                    key: 'c',
+                    label: 'b.c',
+                    limit: 1,
+                    value: 2
+                }
+            },
+            {
+                type: 'any.only',
+                path: ['a'],
+                message: '"a" must be [1]',
+                context: {
+                    key: 'a',
+                    label: 'a',
+                    valids: ['1'],
+                    value: 1
+                }
+            }
+        ]);
+
+        const abortEarly = schema.validate(params, { abortEarly: true });
+        expect(abortEarly.value).to.equal({ b: { c: 2, d: 3 } });
+        expect(abortEarly.error.message).to.equal('"b.c" must be less than or equal to 1');
+        expect(abortEarly.error.details).to.equal([
+            {
+                type: 'number.max',
+                path: ['b', 'c'],
+                message: '"b.c" must be less than or equal to 1',
+                context: {
+                    key: 'c',
+                    label: 'b.c',
+                    limit: 1,
+                    value: 2
+                }
+            }
+        ]);
     });
 });
