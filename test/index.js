@@ -595,7 +595,190 @@ describe('JoiConfig', () => {
         });
     });
 
-    describe('intoWhen()', () => {});
+    describe('intoWhen()', () => {
+
+        it('maps values using when() syntax.', () => {
+
+            const schemaSimpleFor = (x) => {
+
+                return joi.value(x).intoWhen({
+                    is: 1,
+                    then: joi.value('one'),
+                    otherwise: joi.value('infinity')
+                });
+            };
+
+            attempt({}, schemaSimpleFor(1)).to.equal('one');
+            attempt({}, schemaSimpleFor(0)).to.equal('infinity');
+
+            const schemaSwitchFor = (x) => {
+
+                return joi.value(x).intoWhen({
+                    switch: [
+                        { is: 1, then: joi.value('one') },
+                        { is: 2, then: joi.value('two') },
+                        { is: 3, then: joi.value('three') }
+                    ],
+                    otherwise: joi.value('infinity')
+                });
+            };
+
+            attempt({}, schemaSwitchFor(2)).to.equal('two');
+            attempt({}, schemaSwitchFor(0)).to.equal('infinity');
+        });
+
+        it('wraps literals, refs, and expressions in value().', () => {
+
+            const schemaSimpleFor = (x) => {
+
+                return joi.value({
+                    a: 'infin',
+                    b: joi.value(x).intoWhen({
+                        is: 1,
+                        then: 'one',
+                        otherwise: joi.x('{a + \'ity\'}')
+                    })
+                });
+            };
+
+            attempt({}, schemaSimpleFor(1)).to.equal({ a: 'infin', b: 'one' });
+            attempt({}, schemaSimpleFor(0)).to.equal({ a: 'infin', b: 'infinity' });
+
+            const schemaSwitchFor = (x) => {
+
+                return joi.value({
+                    a: 'three',
+                    b: 'fo',
+                    c: joi.value(x).intoWhen({
+                        switch: [
+                            { is: 1, then: 'one' },
+                            { is: 2, then: joi.p.ref('x') },
+                            { is: 3, then: joi.ref('a') },
+                            { is: 4, then: joi.x('{b + \'ur\'}') }
+                        ],
+                        otherwise: 'infinity'
+                    })
+                });
+            };
+
+            attempt({ x: 'two' }, schemaSwitchFor(1)).to.equal({ a: 'three', b: 'fo', c: 'one' });
+            attempt({ x: 'two' }, schemaSwitchFor(2)).to.equal({ a: 'three', b: 'fo', c: 'two' });
+            attempt({ x: 'two' }, schemaSwitchFor(3)).to.equal({ a: 'three', b: 'fo', c: 'three' });
+            attempt({ x: 'two' }, schemaSwitchFor(4)).to.equal({ a: 'three', b: 'fo', c: 'four' });
+            attempt({ x: 'two' }, schemaSwitchFor(0)).to.equal({ a: 'three', b: 'fo', c: 'infinity' });
+        });
+
+        it('passes through prepared value.', () => {
+
+            const params = { a: 1 };
+            const schema = joi.value({
+                x: joi.param('a').intoWhen({
+                    is: 2,
+                    then: joi.value('two'),
+                    otherwise: joi.any()
+                })
+            });
+
+            attempt(params, schema).to.equal({ x: 1 });
+        });
+
+        it('strips when otherwise case is missing.', () => {
+
+            const params = { a: 1 };
+            const schema = joi.value({
+                x: joi.param('a').intoWhen({
+                    is: 2,
+                    then: joi.value('two')
+                })
+            });
+
+            attempt(params, schema).to.equal({});
+        });
+
+        it('strips when then case is missing.', () => {
+
+            const params = { a: 2 };
+            const schema = joi.value({
+                x: joi.param('a').intoWhen({
+                    is: 2,
+                    otherwise: joi.value('infinity')
+                })
+            });
+
+            attempt(params, schema).to.equal({});
+        });
+
+        it('is compatible with default().', () => {
+
+            const params = { a: 2 };
+            const schema = joi.value({
+                x: joi.param('a').default('two').intoWhen({
+                    is: 1,
+                    then: joi.value('one'),
+                    otherwise: joi.strip()
+                })
+            });
+
+            attempt(params, schema).to.equal({ x: 'two' });
+        });
+
+        it('does not add otherwise case if it is handled within switch', () => {
+
+            const schemaSwitchFor = (x) => {
+
+                return joi.value(x).intoWhen({
+                    switch: [
+                        { is: 1, then: joi.value('one') },
+                        { is: 2, then: joi.value('two') },
+                        { is: 3, then: 'three', otherwise: 'infinity' }
+                    ]
+                });
+            };
+
+            attempt({}, schemaSwitchFor(1)).to.equal('one');
+            attempt({}, schemaSwitchFor(2)).to.equal('two');
+            attempt({}, schemaSwitchFor(3)).to.equal('three');
+            attempt({}, schemaSwitchFor(0)).to.equal('infinity');
+        });
+
+        it('allows joi to complain about invalid switch.', () => {
+
+            expect(() => {
+
+                joi.value().intoWhen({
+                    is: 1,
+                    switch: {}
+                });
+            }).to.throw('"switch" must be an array');
+        });
+
+        it('evaluates ref in { is }.', () => {
+
+            const params = { a: 1, b: 'two', c: 1 };
+            const schema = joi.value({
+                x: joi.param('a').intoWhen({
+                    is: joi.p.ref('c'),
+                    then: joi.param('b'),
+                    otherwise: joi.value(null)
+                })
+            });
+
+            attempt(params, schema).to.equal({ x: 'two' });
+        });
+
+        it('maps undefined value.', () => {
+
+            const params = {};
+            const schema = joi.param('ernnt').intoWhen({
+                is: joi.number(),
+                then: joi.value(false),
+                otherwise: joi.value(true)
+            });
+
+            attempt(params, schema).to.equal(true);
+        });
+    });
+
     describe('into() (and default)', () => {});
 
     it('value() and params() with ref.', () => {
@@ -649,51 +832,6 @@ describe('JoiConfig', () => {
             x: 'one',
             y: { z: ['s', 'e', 'e'] },
             w: ['item1', 'item3']
-        });
-    });
-
-    it('intoWhen() passes through prepared value.', () => {
-
-        const params = { a: 1 };
-        const schema = joi.value({
-            x: joi.param('a').intoWhen({
-                is: 2,
-                then: joi.value('two'),
-                otherwise: joi.any()
-            })
-        });
-
-        attempt(params, schema).to.equal({
-            x: 1
-        });
-    });
-
-    it('intoWhen() strips when case is missing.', () => {
-
-        const params = { a: 1 };
-        const schema = joi.value({
-            x: joi.param('a').intoWhen({
-                is: 2,
-                then: joi.value('two')
-            })
-        });
-
-        attempt(params, schema).to.equal({});
-    });
-
-    it('intoWhen() with default().', () => {
-
-        const params = { a: 2 };
-        const schema = joi.value({
-            x: joi.param('a').default('two').intoWhen({
-                is: 1,
-                then: joi.value('one'),
-                otherwise: joi.strip()
-            })
-        });
-
-        attempt(params, schema).to.equal({
-            x: 'two'
         });
     });
 
@@ -751,43 +889,5 @@ describe('JoiConfig', () => {
         attempt({ a: 'three' }, schema3).to.equal({ x: 0 });
 
         attempt({ a: '$default' }, schema3).to.equal({ x: 3 });
-    });
-
-    it('intoWhen() with ref in { is }.', () => {
-
-        const params = { a: 1, b: 'two', c: 1 };
-        const schema = joi.value({
-            x: joi.param('a').intoWhen({
-                is: joi.ref('/c'),
-                then: joi.param('b'),
-                otherwise: joi.value(null)
-            })
-        });
-
-        attempt(params, schema).to.equal({
-            x: 'two'
-        });
-    });
-
-    it('intoWhen() with empty value.', () => {
-
-        const params = {};
-        const schema = joi.param('ernnt').intoWhen({
-            is: joi.number(),
-            then: joi.value(false),
-            otherwise: joi.value(true)
-        });
-
-        attempt(params, schema).to.equal(true);
-    });
-
-    it('allows refs in standard rules.', () => {
-
-        const schema = joi.value({
-            x: joi.number().min(joi.ref('/min')).value(11)
-        });
-
-        attempt({ min: 10 }, schema).to.equal({ x: 11 });
-        expect(() => joi.attempt({ min: 12 }, schema)).to.throw('"x" must be greater than or equal to ref:root:min');
     });
 });
